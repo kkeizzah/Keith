@@ -15,19 +15,19 @@ const blocked_users = require('./Functions/blocked_users');
 const status_saver = require('./Functions/status_saver');
 const eval2 = require('./Functions/eval2');
 const eval = require('./Functions/eval');
-const antiviewonce = require('./Functions/antiviewonce');
+
 const gcPresence = require('./Functions/gcPresence');
 const antilinkgc = require('./Functions/antilink');
 const antitaggc = require('./Functions/antitag');
-const antispam1 = require('./Functions/antispam');
+
 const antibadgc = require('./Functions/antibad');
-const antibotgc = require('./Functions/antibot');
+
 const masterEval = require('./Functions/masterEval');
 
 const {
    presence, autoread, botname,
-   mode, prefix, mycode, author, antispam, packname,
-   dev, gcpresence, antionce, antitag, antibad, antibot, antilink, antidelete
+   mode, prefix, mycode, author, packname,
+   dev, gcpresence, antitag, antibad, antilink
 } = require('./settings');
 
 module.exports = Keith = async (client, m, chatUpdate, message, store) => {
@@ -96,7 +96,7 @@ module.exports = Keith = async (client, m, chatUpdate, message, store) => {
         client, m, text, antispam, isBotMessage, message, Owner, chatUpdate, store, isBotAdmin, isAdmin, IsGroup, participants,
         pushname, body, budy, totalCommands, args, mime, qmsg, msgKeith, botNumber, itsMe,
         packname, author, generateProfilePicture, groupMetadata, Keithspeed, mycode,
-        fetchJson, exec, antibad, getRandom, UploadFileUgu, TelegraPh, prefix, cmd, botname, mode, gcpresence, antibot, antitag, antilink, antidelete, antionce, fetchBuffer,store, uploadtoimgur, chatUpdate, ytmp3, getGroupAdmins, Tag
+        fetchJson, exec, antibad, getRandom, UploadFileUgu, TelegraPh, prefix, cmd, botname, mode, gcpresence, antitag, antilink, fetchBuffer,store, uploadtoimgur, chatUpdate, ytmp3, getGroupAdmins, Tag
     };
     if (cmd && mode === 'private' && !itsMe && !Owner && m.sender !== daddy ) {
       return;
@@ -112,13 +112,11 @@ module.exports = Keith = async (client, m, chatUpdate, message, store) => {
     await eval2(client, m, Owner, budy, fetchJson)
     await eval(client, m, Owner, budy, fetchJson, store)
     await antilinkgc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antilink);
-    await antiviewonce(client, m, antionce);
     await gcPresence(client, m, gcpresence);
     await antibadgc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antibad); 
-    await antispam1(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antispam);   
+   
     await antitaggc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antitag);
-    await antibotgc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, isBotMessage, message, antibot);
-
+   
     await masterEval(client, m, Owner, budy, fetchJson, store);
 
     const command = cmd ? body.replace(prefix, "").trim().split(/ +/).shift().toLowerCase() : null;
