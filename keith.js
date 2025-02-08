@@ -1,143 +1,371 @@
-const { BufferJSON, WA_DEFAULT_EPHEMERAL, generateWAMessageFromContent, proto, generateWAMessageContent, generateWAMessage, prepareWAMessageMedia, areJidsSameUser, getContentType } = require("@whiskeysockets/baileys");
-const fs = require("fs");
-const util = require("util");
-const chalk = require("chalk");
-const speed = require("performance-now");
-const { smsg, formatp, tanggal, formatDate, getTime, sleep, clockString, fetchJson, getBuffer, jsonformat, generateProfilePicture, parseMention, getRandom, fetchBuffer } = require('./lib/botFunctions.js');
-const daddy = "254748387615@s.whatsapp.net";
-const { exec, spawn, execSync } = require("child_process");
-const { TelegraPh, UploadFileUgu } = require("./lib/toUrl");
-const uploadtoimgur = require('./lib/Imgur')
-const ytmp3 = require('./lib/ytmp3');
-const path = require('path');
-const { commands, totalCommands } = require('./commandHandler');
-const blocked_users = require('./Functions/blocked_users');
-const status_saver = require('./Functions/status_saver');
-const eval2 = require('./Functions/eval2');
-const eval = require('./Functions/eval');
-
-const gcPresence = require('./Functions/gcPresence');
-const antilinkgc = require('./Functions/antilink');
-const antitaggc = require('./Functions/antitag');
-
-const antibadgc = require('./Functions/antibad');
-
-const masterEval = require('./Functions/masterEval');
+/* this is the main file */
 
 const {
-   presence, autoread, botname,
-   mode, prefix, mycode, author, packname,
-   dev, gcpresence, antitag, antibad, antilink
-} = require('./settings');
+  default: KeithConnect,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  makeInMemoryStore,
+  downloadContentFromMessage,
+  jidDecode,
+  proto,
+  getContentType,
+} = require("@whiskeysockets/baileys");
+const pino = require("pino");
+const { Boom } = require("@hapi/boom");
+const fs = require("fs");
+const FileType = require("file-type");
+const { exec, spawn, execSync } = require("child_process");
+const axios = require("axios");
+const chalk = require("chalk");
+const figlet = require("figlet");
+const express = require("express");
+const app = express();
+const port = process.env.PORT || 10000;
+const _ = require("lodash");
+const PhoneNumber = require("awesome-phonenumber");
+const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif');
+const { isUrl, generateMessageTag, getBuffer, getSizeMedia, fetchJson, await, sleep } = require('./lib/botFunctions');
+const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
 
-module.exports = Keith = async (client, m, chatUpdate, message, store) => {
-  try {
-    var body =
-      m.mtype === "conversation"
-        ? m.message.conversation
-        : m.mtype === "imageMessage"
-        ? m.message.imageMessage.caption
-        : m.mtype === "extendedTextMessage"
-        ? m.message.extendedTextMessage.text
-        : "";
-    const Tag =
-      m.mtype == "extendedTextMessage" &&
-      m.message.extendedTextMessage.contextInfo != null
-        ? m.message.extendedTextMessage.contextInfo.mentionedJid
-        : [];
+const authenticationn = require('./auth.js');
+const { smsg } = require('./smsg');
 
-    var msgKeith = m.message.extendedTextMessage?.contextInfo?.quotedMessage;
+const { autoview, autoread, botname, autobio, mode, prefix, autoreact, presence, autolike, anticall } = require('./settings');
+const { DateTime } = require('luxon');
+const { commands, totalCommands } = require('./commandHandler');
+authenticationn();
+const groupEvents = require("./groupEvents.js");
+// const connectionEvents = require("./connectionEvents.js");
 
-    var budy = typeof m.text == "string" ? m.text : "";
-   
-    const timestamp = speed(); 
-    const Keithspeed = speed() - timestamp;
+async function startKeith() {
 
-    const cmd = body.startsWith(prefix);
+  const { saveCreds, state } = await useMultiFileAuthState(`session`)
+  const client = KeithConnect({
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: true,
+    version: [2, 3000, 1015901307],
+    browser: [`KEITH-MD`, 'Safari', '3.0'],
+    fireInitQueries: false,
+    shouldSyncHistoryMessage: true,
+    downloadHistory: true,
+    syncFullHistory: true,
+    generateHighQualityLinkPreview: true,
+    markOnlineOnConnect: true,
+    keepAliveIntervalMs: 30000,
+    auth: state,
+    getMessage: async (key) => {
+      if (store) {
+        const mssg = await store.loadMessage(key.remoteJid, key.id);
+        return mssg.message || undefined;
+      }
+      return { conversation: "HERE" };
+    }
+  });
   
-    const args = body.trim().split(/ +/).slice(1);
-    const pushname = m.pushName || "No Name";
-    const botNumber = await client.decodeJid(client.user.id);
-    const itsMe = m.sender == botNumber ? true : false;
-     const isBotMessage = m.sender == botNumber ? true : false;
-    let text = (q = args.join(" "));
-    const arg = budy.trim().substring(budy.indexOf(" ") + 1);
-    const arg1 = arg.trim().substring(arg.indexOf(" ") + 1);
+ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-    const getGroupAdmins = (participants) => { 
-       let admins = []; 
-       for (let i of participants) { 
-         i.admin === "superadmin" ? admins.push(i.id) : i.admin === "admin" ? admins.push(i.id) : ""; 
-       } 
-       return admins || []; 
-     };
-    const keizzah = (m.quoted || m); 
-    const quoted = (keizzah.mtype == 'buttonsMessage') ? keizzah[Object.keys(keizzah)[1]] : (keizzah.mtype == 'templateMessage') ? keizzah.hydratedTemplate[Object.keys(keizzah.hydratedTemplate)[1]] : (keizzah.mtype == 'product') ? keizzah[Object.keys(keizzah)[0]] : m.quoted ? m.quoted : m; 
+// Track the last text time to prevent overflow
+let lastTextTime = 0;
+const messageDelay = 5000; // Set the minimum delay between messages (in milliseconds)
 
-    const color = (text, color) => {
-      return !color ? chalk.green(text) : chalk.keyword(color)(text);
-    };
-    const mime = (quoted.msg || quoted).mimetype || "";
-    const qmsg = (quoted.msg || quoted);
+client.ev.on('call', async (callData) => {
+  if (anticall === 'true') {
+    const callId = callData[0].id;
+    const callerId = callData[0].from;
+    
+    // Reject the call
+    await client.rejectCall(callId, callerId);
 
-    const DevKeith = dev.split(",");
-    const Owner = DevKeith.map((v) => v.replace(/[^0-9]/g, "") + "@s.whatsapp.net").includes(m.sender);
-   
-    const groupMetadata = m.isGroup ? await client.groupMetadata(m.chat).catch((e) => {}) : "";
-    const groupName = m.isGroup && groupMetadata ? await groupMetadata.subject : "";
-    const participants = m.isGroup && groupMetadata ? await groupMetadata.participants : ""; 
-    const groupAdmin = m.isGroup ? await getGroupAdmins(participants) : "";  
-    const isBotAdmin = m.isGroup ? groupAdmin.includes(botNumber) : false; 
-    const isAdmin = m.isGroup ? groupAdmin.includes(m.sender) : false;
+    // Check if enough time has passed since the last message
+    const currentTime = Date.now();
+    if (currentTime - lastTextTime >= messageDelay) {
+      // Send the rejection message if the delay has passed
+      await client.sendMessage(callerId, {
+        text: '```❗📵I AM KEITH MD | I REJECT THIS CALL BECAUSE MY OWNER IS BUSY. KINDLY SEND TEXT INSTEAD```.',
+      });
 
-    const IsGroup = m.chat?.endsWith("@g.us");
-
-    const context = {
-        client, m, text, antispam, isBotMessage, message, Owner, chatUpdate, store, isBotAdmin, isAdmin, IsGroup, participants,
-        pushname, body, budy, totalCommands, args, mime, qmsg, msgKeith, botNumber, itsMe,
-        packname, author, generateProfilePicture, groupMetadata, Keithspeed, mycode,
-        fetchJson, exec, antibad, getRandom, UploadFileUgu, TelegraPh, prefix, cmd, botname, mode, gcpresence, antitag, antilink, fetchBuffer,store, uploadtoimgur, chatUpdate, ytmp3, getGroupAdmins, Tag
-    };
-    if (cmd && mode === 'private' && !itsMe && !Owner && m.sender !== daddy ) {
-      return;
+      // Update the last text time
+      lastTextTime = currentTime;
+    } else {
+      console.log('Message skipped to prevent overflow');
     }
+  }
+});
 
-    if (await blocked_users(client, m, cmd)) {
-      await m.reply("You are blocked from using bot commands.");
-      return;
+if (autoreact === 'true') {
+  client.ev.on("messages.upsert", async (chatUpdate) => {
+    try {
+      const mek = chatUpdate.messages[0];  // Assuming 'messages' is an array of messages
+      if (!mek || !mek.message) return;
+
+      const emojiFilePath = path.resolve(__dirname, 'database', 'emojis.json');
+      let emojis = [];
+
+      // Ensure emojis file exists and is valid
+      try {
+        const data = fs.readFileSync(emojiFilePath, 'utf8');
+        emojis = JSON.parse(data);  // Parse the JSON data into an array
+      } catch (error) {
+        console.error('Error reading emojis file:', error);
+        return;
+      }
+
+      // Process the message to react with a random emoji
+      if (!mek.key.fromMe && emojis.length > 0) {
+        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        await client.sendMessage(mek.key.remoteJid, {
+          react: {
+            text: randomEmoji,
+            key: mek.key,
+          },
+        });
+      }
+
+    } catch (error) {
+      console.error('Error processing message:', error);
     }
-
-    // await antidel(client, m, store, chatUpdate, antidelete);
-    await status_saver(client, m, Owner, prefix)
-    await eval2(client, m, Owner, budy, fetchJson)
-    await eval(client, m, Owner, budy, fetchJson, store)
-    await antilinkgc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antilink);
-    await gcPresence(client, m, gcpresence);
-    await antibadgc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antibad); 
-   
-    await antitaggc(client, m, isBotAdmin, itsMe, isAdmin, Owner, body, antitag);
-   
-    await masterEval(client, m, Owner, budy, fetchJson, store);
-
-    const command = cmd ? body.replace(prefix, "").trim().split(/ +/).shift().toLowerCase() : null;
-
-    if (commands[command]) {
-      await commands[command](context);
-    }
-
-  } catch (err) {
-    console.log(util.format(err));
+  });
+}
+ 
+  if (autobio === 'true') {
+    setInterval(() => {
+      const date = new Date();
+      client.updateProfileStatus(
+        `${botname} is active 24/7\n\n${date.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' })} It's a ${date.toLocaleString('en-US', { weekday: 'long', timeZone: 'Africa/Nairobi' })}.`
+      );
+    }, 10 * 1000);
   }
 
-  process.on('uncaughtException', function (errr) {
-    let e = String(errr)
-    if (e.includes("conflict")) return
-    if (e.includes("not-authorized")) return
-    if (e.includes("Socket connection timeout")) return
-    if (e.includes("rate-overlimit")) return
-    if (e.includes("Connection Closed")) return
-    if (e.includes("Timed Out")) return
-    if (e.includes("Value not found")) return
-    console.log('Caught exception: ', errr)
+  client.ev.on("messages.upsert", async (chatUpdate) => {
+    try {
+      mek = chatUpdate.messages[0];
+      if (!mek.message) return;
+      mek.message = Object.keys(mek.message)[0] === "ephemeralMessage" ? mek.message.ephemeralMessage.message : mek.message;
+
+      if (autoview === 'true' && autolike === 'true' && mek.key && mek.key.remoteJid === "status@broadcast") {
+        const keithlike = await client.decodeJid(client.user.id);
+        await client.sendMessage(mek.key.remoteJid, { react: { key: mek.key, text: '💎' } }, { statusJidList: [mek.key.participant, keithlike] });
+      }
+
+      if (autoview === 'true' && mek.key && mek.key.remoteJid === "status@broadcast") {
+        await client.readMessages([mek.key]);
+      } else if (autoread === 'true' && mek.key && mek.key.remoteJid.endsWith('@s.whatsapp.net')) {
+        await client.readMessages([mek.key]);
+      }
+
+      if (mek.key && mek.key.remoteJid.endsWith('@s.whatsapp.net')) {
+        const Chat = mek.key.remoteJid;
+        if (presence === 'online') {
+          await client.sendPresenceUpdate("available", Chat);
+        } else if (presence === 'typing') {
+          await client.sendPresenceUpdate("composing", Chat);
+        } else if (presence === 'recording') {
+          await client.sendPresenceUpdate("recording", Chat);
+        } else {
+          await client.sendPresenceUpdate("unavailable", Chat);
+        }
+      }
+
+      if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify") return;
+
+      m = smsg(client, mek, store);
+      require("./keith")(client, m, chatUpdate, store);
+    } catch (err) {
+      console.log(err);
+    }
   });
-};
+
+  // Handle error
+  const unhandledRejections = new Map();
+  process.on("unhandledRejection", (reason, promise) => {
+    unhandledRejections.set(promise, reason);
+    console.log("Unhandled Rejection at:", promise, "reason:", reason);
+  });
+  process.on("rejectionHandled", (promise) => {
+    unhandledRejections.delete(promise);
+  });
+  process.on("Something went wrong", function (err) {
+    console.log("Caught exception: ", err);
+  });
+
+  // Setting
+  client.decodeJid = (jid) => {
+    if (!jid) return jid;
+    if (/:\d+@/gi.test(jid)) {
+      let decode = jidDecode(jid) || {};
+      return (decode.user && decode.server && decode.user + "@" + decode.server) || jid;
+    } else return jid;
+  };
+
+  client.getName = (jid, withoutContact = false) => {
+    id = client.decodeJid(jid);
+    withoutContact = client.withoutContact || withoutContact;
+    let v;
+    if (id.endsWith("@g.us"))
+      return new Promise(async (resolve) => {
+        v = store.contacts[id] || {};
+        if (!(v.name || v.subject)) v = client.groupMetadata(id) || {};
+        resolve(v.name || v.subject || PhoneNumber("+" + id.replace("@s.whatsapp.net", "")).getNumber("international"));
+      });
+    else
+      v =
+        id === "0@s.whatsapp.net"
+          ? {
+              id,
+              name: "WhatsApp",
+            }
+          : id === client.decodeJid(client.user.id)
+          ? client.user
+          : store.contacts[id] || {};
+    return (withoutContact ? "" : v.name) || v.subject || v.verifiedName || PhoneNumber("+" + jid.replace("@s.whatsapp.net", "")).getNumber("international");
+  };
+
+  client.public = true;
+
+  client.serializeM = (m) => smsg(client, m, store);
+
+  client.ev.on("group-participants.update", async (m) => {
+    groupEvents(client, m);
+  });
+
+  client.ev.on("connection.update", async (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === "close") {
+      let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+      if (reason === DisconnectReason.badSession) {
+        console.log(`Bad Session File, Please Delete Session and Scan Again`);
+        process.exit();
+      } else if (reason === DisconnectReason.connectionClosed) {
+        console.log("Connection closed, reconnecting....");
+        startKeith();
+      } else if (reason === DisconnectReason.connectionLost) {
+        console.log("Connection Lost from Server, reconnecting...");
+        startKeith();
+      } else if (reason === DisconnectReason.connectionReplaced) {
+        console.log("Connection Replaced, Another New Session Opened, Please Restart Bot");
+        process.exit();
+      } else if (reason === DisconnectReason.loggedOut) {
+        console.log(`Device Logged Out, Please Delete File creds.json and Scan Again.`);
+        process.exit();
+      } else if (reason === DisconnectReason.restartRequired) {
+        console.log("Restart Required, Restarting...");
+        startKeith();
+      } else if (reason === DisconnectReason.timedOut) {
+        console.log("Connection TimedOut, Reconnecting...");
+        startKeith();
+      } else {
+        console.log(`Unknown DisconnectReason: ${reason}|${connection}`);
+        startKeith();
+      }
+    } else if (connection === "open") {
+
+      await client.groupAcceptInvite("KVkQtTxS6JA0Jctdsu5Tj9");
+
+      console.log(`✅ Connection successful\nLoaded ${totalCommands} commands.\nBot is active.`);
+
+      const getGreeting = () => {
+        const currentHour = DateTime.now().setZone('Africa/Nairobi').hour;
+
+        if (currentHour >= 5 && currentHour < 12) {
+          return 'Good morning 🌄';
+        } else if (currentHour >= 12 && currentHour < 18) {
+          return 'Good afternoon ☀️';
+        } else if (currentHour >= 18 && currentHour < 22) {
+          return 'Good evening 🌆';
+        } else {
+              return 'Good night 😴';
+            }
+        };
+
+
+        const getCurrentTimeInNairobi = () => {
+            return DateTime.now().setZone('Africa/Nairobi').toLocaleString(DateTime.TIME_SIMPLE);
+        };
+
+        let message = `Holla, ${getGreeting()},\n\n╭═══『𝐊𝐞𝐢𝐭𝐡 𝐌𝐝 𝐢𝐬 𝐜𝐨𝐧𝐧𝐞𝐜𝐭𝐞𝐝』══⊷ \n`;
+
+        message += `║ ʙᴏᴛ ɴᴀᴍᴇ ${botname}\n`;
+message += `║ ᴍᴏᴅᴇ ${mode}\n`;
+message += `║ ᴘʀᴇғɪx [  ${prefix} ]\n`;
+
+message += `║ ᴛᴏᴛᴀʟ ᴘʟᴜɢɪɴs ${totalCommands}\n`
+        message += '║ ᴛɪᴍᴇ ' + getCurrentTimeInNairobi() + '\n';
+        message += '║ ʟɪʙʀᴀʀʏ Baileys\n';
+
+message += `╰═════════════════⊷`
+
+
+
+
+            await client.sendMessage(client.user.id, { text: message });
+        }
+
+
+
+
+  });
+
+  client.ev.on("creds.update", saveCreds);
+
+
+  client.sendText = (jid, text, quoted = "", options) => client.sendMessage(jid, { text: text, ...options }, { quoted });
+
+    client.downloadMediaMessage = async (message) => { 
+         let mime = (message.msg || message).mimetype || ''; 
+         let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0]; 
+         const stream = await downloadContentFromMessage(message, messageType); 
+         let buffer = Buffer.from([]); 
+         for await(const chunk of stream) { 
+             buffer = Buffer.concat([buffer, chunk]) 
+         } 
+
+         return buffer 
+      }; 
+
+
+       
+
+ client.downloadAndSaveMediaMessage = async (message, filename, attachExtension = true) => { 
+         let quoted = message.msg ? message.msg : message; 
+         let mime = (message.msg || message).mimetype || ''; 
+         let messageType = message.mtype ? message.mtype.replace(/Message/gi, '') : mime.split('/')[0]; 
+         const stream = await downloadContentFromMessage(quoted, messageType); 
+         let buffer = Buffer.from([]); 
+         for await(const chunk of stream) { 
+             buffer = Buffer.concat([buffer, chunk]); 
+         } 
+         let type = await FileType.fromBuffer(buffer); 
+         const trueFileName = attachExtension ? (filename + '.' + type.ext) : filename; 
+         // save to file 
+         await fs.writeFileSync(trueFileName, buffer); 
+         return trueFileName; 
+     };
+
+}
+
+
+
+
+
+app.use(express.static('public'));
+
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + '/index.html'); 
+});
+
+
+app.listen(port, () => console.log(`Server listening on port http://localhost:${port}`));
+
+startKeith();
+
+
+module.exports = startKeith;
+
+let file = require.resolve(__filename);
+fs.watchFile(file, () => {
+  fs.unwatchFile(file);
+  console.log(chalk.redBright(`Update ${__filename}`));
+  delete require.cache[file];
+  require(file);
+});
